@@ -458,28 +458,6 @@ void handle_ignore_submodules_arg(struct diff_options *diffopt,
 	 */
 }
 
-static int prepare_submodule_diff_summary(struct repository *r, struct rev_info *rev,
-					  const char *path,
-					  struct commit *left, struct commit *right,
-					  struct commit_list *merge_bases)
-{
-	struct commit_list *list;
-
-	repo_init_revisions(r, rev, NULL);
-	setup_revisions(0, NULL, rev, NULL);
-	rev->left_right = 1;
-	rev->first_parent_only = 1;
-	left->object.flags |= SYMMETRIC_LEFT;
-	add_pending_object(rev, &left->object, path);
-	add_pending_object(rev, &right->object, path);
-	for (list = merge_bases; list; list = list->next) {
-		list->item->object.flags |= UNINTERESTING;
-		add_pending_object(rev, &list->item->object,
-			oid_to_hex(&list->item->object.oid));
-	}
-	return prepare_revision_walk(rev);
-}
-
 static void print_submodule_diff_summary(struct repository *r, struct rev_info *rev, struct diff_options *o)
 {
 	static const char format[] = "  %m %s";
@@ -623,6 +601,7 @@ void show_submodule_diff_summary(struct diff_options *o, const char *path,
 	struct commit *left = NULL, *right = NULL;
 	struct commit_list *merge_bases = NULL;
 	struct repository *sub;
+	struct commit_list *list;
 
 	sub = open_submodule(path);
 	show_submodule_header(o, path, one, two, dirty_submodule,
@@ -634,10 +613,22 @@ void show_submodule_diff_summary(struct diff_options *o, const char *path,
 	 * all the information the user needs.
 	 */
 	if (!left || !right || !sub)
-		goto out;
+		goto out_no_rev;
 
+	repo_init_revisions(sub, &rev, NULL);
+	setup_revisions(0, NULL, &rev, NULL);
+	rev.left_right = 1;
+	rev.first_parent_only = 1;
+	left->object.flags |= SYMMETRIC_LEFT;
+	add_pending_object(&rev, &left->object, path);
+	add_pending_object(&rev, &right->object, path);
+	for (list = merge_bases; list; list = list->next) {
+		list->item->object.flags |= UNINTERESTING;
+		add_pending_object(&rev, &list->item->object,
+			oid_to_hex(&list->item->object.oid));
+	}
 	/* Treat revision walker failure the same as missing commits */
-	if (prepare_submodule_diff_summary(sub, &rev, path, left, right, merge_bases)) {
+	if (prepare_revision_walk(&rev)) {
 		diff_emit_submodule_error(o, "(revision walker failed)\n");
 		goto out;
 	}
@@ -645,6 +636,8 @@ void show_submodule_diff_summary(struct diff_options *o, const char *path,
 	print_submodule_diff_summary(sub, &rev, o);
 
 out:
+	release_revisions(&rev);
+out_no_rev:
 	if (merge_bases)
 		free_commit_list(merge_bases);
 	clear_commit_marks(left, ~0);
@@ -925,9 +918,11 @@ static void collect_changed_submodules(struct repository *r,
 		diff_rev.diffopt.format_callback_data = &data;
 		diff_rev.dense_combined_merges = 1;
 		diff_tree_combined_merge(commit, &diff_rev);
+		release_revisions(&diff_rev);
 	}
 
 	reset_revision_walk();
+	release_revisions(&rev);
 }
 
 static void free_submodules_data(struct string_list *submodules)

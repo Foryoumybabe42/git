@@ -3401,6 +3401,7 @@ static void read_packs_list_from_stdin(void)
 	strbuf_release(&buf);
 	string_list_clear(&include_packs, 0);
 	string_list_clear(&exclude_packs, 0);
+	release_revisions(&revs);
 }
 
 static void add_cruft_object_entry(const struct object_id *oid, enum object_type type,
@@ -4054,6 +4055,7 @@ static void get_object_list(struct rev_info *revs, int ac, const char **av)
 	if (unpack_unreachable)
 		loosen_unused_packed_objects();
 
+	release_revisions(revs);
 	oid_array_clear(&recent_objects);
 }
 

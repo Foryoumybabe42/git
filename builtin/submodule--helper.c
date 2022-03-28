@@ -779,7 +779,7 @@ static void status_submodule(const char *path, const struct object_id *ce_oid,
 
 	if ((CE_STAGEMASK & ce_flags) >> CE_STAGESHIFT) {
 		print_status(flags, 'U', path, null_oid(), displaypath);
-		goto cleanup;
+		goto cleanup_no_rev;
 	}
 
 	strbuf_addf(&buf, "%s/.git", path);
@@ -791,7 +791,7 @@ static void status_submodule(const char *path, const struct object_id *ce_oid,
 	    !is_git_directory(git_dir)) {
 		print_status(flags, '-', path, ce_oid, displaypath);
 		strbuf_release(&buf);
-		goto cleanup;
+		goto cleanup_no_rev;
 	}
 	strbuf_release(&buf);
 
@@ -851,6 +851,8 @@ static void status_submodule(const char *path, const struct object_id *ce_oid,
 	}
 
 cleanup:
+	release_revisions(&rev);
+cleanup_no_rev:
 	strvec_clear(&diff_files_args);
 	free(displaypath);
 }
@@ -1231,6 +1233,7 @@ static int compute_summary_module_list(struct object_id *head_oid,
 	struct strvec diff_args = STRVEC_INIT;
 	struct rev_info rev;
 	struct module_cb_list list = MODULE_CB_LIST_INIT;
+	int ret = 0;
 
 	strvec_push(&diff_args, get_diff_cmd(diff_cmd));
 	if (info->cached)
@@ -1256,11 +1259,13 @@ static int compute_summary_module_list(struct object_id *head_oid,
 			setup_work_tree();
 		if (read_cache_preload(&rev.diffopt.pathspec) < 0) {
 			perror("read_cache_preload");
-			return -1;
+			ret = -1;
+			goto cleanup;
 		}
 	} else if (read_cache() < 0) {
 		perror("read_cache");
-		return -1;
+		ret = -1;
+		goto cleanup;
 	}
 
 	if (diff_cmd == DIFF_INDEX)
@@ -1268,8 +1273,10 @@ static int compute_summary_module_list(struct object_id *head_oid,
 	else
 		run_diff_files(&rev, 0);
 	prepare_submodule_summary(info, &list);
+cleanup:
 	strvec_clear(&diff_args);
-	return 0;
+	release_revisions(&rev);
+	return ret;
 }
 
 static int module_summary(int argc, const char **argv, const char *prefix)
