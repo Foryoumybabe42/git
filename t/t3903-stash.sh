@@ -1384,6 +1384,58 @@ test_expect_success 'stash --keep-index with file deleted in index does not resu
 	test_path_is_missing to-remove
 '
 
+test_expect_success 'stash export and import round-trip stashes' '
+	git reset &&
+	>untracked &&
+	>tracked1 &&
+	>tracked2 &&
+	git add tracked* &&
+	git stash -- &&
+	>subdir/untracked &&
+	>subdir/tracked1 &&
+	>subdir/tracked2 &&
+	git add subdir/tracked* &&
+	git stash -- subdir/ &&
+	stash0=$(git rev-parse --verify stash@{0}) &&
+	stash1=$(git rev-parse --verify stash@{1}) &&
+	simple=$(git stash export --print) &&
+	git stash clear &&
+	git stash import "$simple" &&
+	imported0=$(git rev-parse --verify stash@{0}) &&
+	imported1=$(git rev-parse --verify stash@{1}) &&
+	test "$imported0" = "$stash0" &&
+	test "$imported1" = "$stash1" &&
+	git stash export --to-ref refs/heads/foo &&
+	git stash clear &&
+	git stash import foo &&
+	imported0=$(git rev-parse --verify stash@{0}) &&
+	imported1=$(git rev-parse --verify stash@{1}) &&
+	test "$imported0" = "$stash0" &&
+	test "$imported1" = "$stash1"
+'
+
+test_expect_success 'stash import appends commits' '
+	git log --format=oneline -g refs/stash >actual &&
+	echo $(cat actual | wc -l) >count &&
+	git stash import refs/heads/foo &&
+	git log --format=oneline -g refs/stash >actual &&
+	test_line_count = $(($(cat count) * 2)) actual
+'
+
+test_expect_success 'stash export can accept specified stashes' '
+	git stash clear &&
+	git stash import foo &&
+	git stash export --to-ref bar stash@{1} stash@{0} &&
+	git stash clear &&
+	git stash import bar &&
+	imported0=$(git rev-parse --verify stash@{0}) &&
+	imported1=$(git rev-parse --verify stash@{1}) &&
+	test "$imported1" = "$stash0" &&
+	test "$imported0" = "$stash1" &&
+	git log --format=oneline -g refs/stash >actual &&
+	test_line_count = 2 actual
+'
+
 test_expect_success 'stash apply should succeed with unmodified file' '
 	echo base >file &&
 	git add file &&

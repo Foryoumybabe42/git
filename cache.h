@@ -1434,16 +1434,17 @@ struct object_context {
 	char *path;
 };
 
-#define GET_OID_QUIETLY           01
-#define GET_OID_COMMIT            02
-#define GET_OID_COMMITTISH        04
-#define GET_OID_TREE             010
-#define GET_OID_TREEISH          020
-#define GET_OID_BLOB             040
-#define GET_OID_FOLLOW_SYMLINKS 0100
-#define GET_OID_RECORD_PATH     0200
-#define GET_OID_ONLY_TO_DIE    04000
-#define GET_OID_REQUIRE_PATH  010000
+#define GET_OID_QUIETLY            01
+#define GET_OID_COMMIT             02
+#define GET_OID_COMMITTISH         04
+#define GET_OID_TREE              010
+#define GET_OID_TREEISH           020
+#define GET_OID_BLOB              040
+#define GET_OID_FOLLOW_SYMLINKS  0100
+#define GET_OID_RECORD_PATH      0200
+#define GET_OID_ONLY_TO_DIE     04000
+#define GET_OID_REQUIRE_PATH   010000
+#define GET_OID_RETURN_FAILURE 020000
 
 #define GET_OID_DISAMBIGUATORS \
 	(GET_OID_COMMIT | GET_OID_COMMITTISH | \
