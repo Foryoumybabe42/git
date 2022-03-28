@@ -5,6 +5,7 @@
  */
 #define USE_THE_INDEX_COMPATIBILITY_MACROS
 #include "cache.h"
+#include "bulk-checkin.h"
 #include "config.h"
 #include "lockfile.h"
 #include "quote.h"
@@ -32,6 +33,7 @@ static int allow_replace;
 static int info_only;
 static int force_remove;
 static int verbose;
+static int odb_transaction_active;
 static int mark_valid_only;
 static int mark_skip_worktree_only;
 static int mark_fsmonitor_only;
@@ -49,6 +51,15 @@ enum uc_mode {
 	UC_FORCE
 };
 
+static void end_odb_transaction_if_active(void)
+{
+	if (!odb_transaction_active)
+		return;
+
+	end_odb_transaction();
+	odb_transaction_active = 0;
+}
+
 __attribute__((format (printf, 1, 2)))
 static void report(const char *fmt, ...)
 {
@@ -56,6 +67,16 @@ static void report(const char *fmt, ...)
 
 	if (!verbose)
 		return;
+
+	/*
+	 * It is possible, though unlikely, that a caller
+	 * could use the verbose output to synchronize with
+	 * addition of objects to the object database, so
+	 * unplug bulk checkin to make sure that future objects
+	 * are immediately visible.
+	 */
+
+	end_odb_transaction_if_active();
 
 	va_start(vp, fmt);
 	vprintf(fmt, vp);
@@ -1116,6 +1137,13 @@ int cmd_update_index(int argc, const char **argv, const char *prefix)
 	 */
 	parse_options_start(&ctx, argc, argv, prefix,
 			    options, PARSE_OPT_STOP_AT_NON_OPTION);
+
+	/*
+	 * Allow the object layer to optimize adding multiple objects in
+	 * a batch.
+	 */
+	begin_odb_transaction();
+	odb_transaction_active = 1;
 	while (ctx.argc) {
 		if (parseopt_state != PARSE_OPT_DONE)
 			parseopt_state = parse_options_step(&ctx, options,
@@ -1189,6 +1217,11 @@ int cmd_update_index(int argc, const char **argv, const char *prefix)
 		strbuf_release(&unquoted);
 		strbuf_release(&buf);
 	}
+
+	/*
+	 * By now we have added all of the new objects
+	 */
+	end_odb_transaction_if_active();
 
 	if (split_index > 0) {
 		if (git_config_get_split_index() == 0)
