@@ -315,7 +315,7 @@ __git_sequencer_status ()
 	elif __git_eread "$g/sequencer/todo" todo
 	then
 		case "$todo" in
-		p[\ \	]|pick[\ \	]*)
+		p[\ \	]*|pick[\ \	]*)
 			r="|CHERRY-PICKING"
 			return 0
 		;;
