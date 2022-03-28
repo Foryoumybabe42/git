@@ -1,0 +1,39 @@
+git-mergetool{litdd}vimdiff(1)
+==============================
+
+NAME
+----
+git-difftool--vimdiff - Helper script to run vim as a diff tool
+
+SYNOPSIS
+--------
+[verse]
+'git difftool' --tool=vimdiff ... (rest of 'git difftool' options)
+
+DESCRIPTION
+-----------
+When specifying '--tool=vimdiff' in 'git difftool', git will open vim with a
+with two vertical windows: LOCAL changes will be placed in the left window and
+REMOTE changes in the right one.
+
+	   ------------------------------------------
+	   |                   |                    |
+	   |                   |                    |
+	   |                   |                    |
+	   |     LOCAL         |    REMOTE          |
+	   |                   |                    |
+	   |                   |                    |
+	   |                   |                    |
+	   ------------------------------------------
+
+VARIANTS
+--------
+Instead of '--tool=vimdiff', you can also use these other variants:
+
+  * '--tool=gvimdiff', to open gvim instead of vim.
+
+  * '--tool=nvimdiff', to open nvim ('neovim') instead of vim.
+
+GIT
+---
+Part of the linkgit:git[1] suite
